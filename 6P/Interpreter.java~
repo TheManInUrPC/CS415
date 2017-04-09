@@ -1,0 +1,257 @@
+/**
+ * Interpreter.java - parses string input representing an infix arithmetic
+ *                 expression into tokens, and builds an expression tree.
+ *                 The expression can use the operators =, +, -, *, /, %.
+ *                 and can contain arbitrarily nested parentheses.
+ *                 The = operator is assignment and must be absolutely lowest
+ *                 precedence.
+ * March 2013
+ * rdb
+ */
+import javax.swing.*;
+import java.util.*;
+import java.io.*;
+
+public class Interpreter //extends JFrame
+{
+    //----------------------  class variables  ------------------------
+    
+    //---------------------- instance variables ----------------------
+    private boolean      _printTree = true;  // if true print tree after each
+    //    expression tree is built 
+    private Stack<TreeNode> random;
+    private Stack<TreeNode> ops;
+    
+    private SymbolTable table;
+    private TreeNode node1 = null;
+    private String lasnode1 = null;
+    private TreeNode finalOp = null;
+    //----------- constants
+    
+    //--------------------------- constructor -----------------------
+    /**
+     * If there is a command line argument use it as an input file.
+     * otherwise invoke an interactive dialog.
+     */
+    public Interpreter( String[] args ) 
+    {      
+        if ( args.length > 0 )
+            processFile( args[ 0 ] );
+        else
+            interactive();      
+    }
+    //--------------------- processFile -----------------------------
+    /**
+     * Given a String containing a file name, open the file and read it.
+     * Each line should represent an expression to be parsed.
+     */
+    public void processFile( String fileName )
+    {
+        File inputFile = new File( fileName );
+        
+        Scanner scan = null;
+        
+        try
+        {
+            scan = new Scanner( inputFile );
+        }
+        catch( FileNotFoundException e )
+        {
+            
+            
+            System.out.println( "Error: No input given" );
+            
+            return;
+        }
+        
+        
+        
+        while( scan.hasNextLine() )
+        {
+            
+            
+            String line = scan.nextLine();
+            processLine( line );
+            
+            
+        }
+    }
+    //--------------------- processLine -----------------------------
+    /**
+     * Parse each input line -- it shouldn't matter whether it comes from
+     * the file or the popup dialog box. It might be convenient to return
+     * return something to the caller in the form of a String that can
+     * be printed or displayed.
+     */
+    public String processLine( String line )
+    {
+        
+        System.out.println(  "Input: " + line );
+        String trimmed = line.trim();
+        if ( trimmed.length() == 0 || trimmed.charAt( 0 ) == '#' )
+            return line;
+        else
+            return processExpr( trimmed );
+        
+    }
+    public void pushNode( TreeNode n )
+    {
+        n.left = random.pop();
+        n.right = random.pop();
+        random.push( n );
+        
+        
+        
+    }
+    public void buildTree( TreeNode n, int r )
+    {
+        String indentation = "";
+        for( int i = 0; i < r; i++ )
+        {
+            //For every recursion, add a space to properly make indentations to the tree
+            indentation += "    ";
+        }
+        if( node != null )
+        {
+            //Make right node and indent.
+            buildTree( node.right, r + 1 );
+            //Make left node and indent
+            buildTree( node.left, r + 1 );
+        }
+        else
+        {
+            return;
+        }
+    }
+    //------------------ processExpr( String ) -------------------------
+    /**
+     * Get all fields in the expression, and
+     * generate tokens for all of them, and
+     * return a String representation of all of them.
+     * 
+     * @param line String
+     * @return result
+     */
+    public String processExpr( String line )
+    {
+        ops = new Stack<TreeNode>();
+        random = new Stack<TreeNode>();
+        
+      
+        
+        
+        
+        //
+        // Visit all the tokens, and join them into one String
+        //
+        
+        Scanner scan = new Scanner( line );
+        
+        
+        
+        while( scan.hasNext() )
+        {
+            node1 = TokenFactory.makeToken( scan.next() );
+            
+            //Look for operators and sort out operands.
+            if( node1 instanceof Operand )
+            {
+                random.push( node1 );
+            }
+            else if( node1.toStringE().equals( "("  ) == true )
+            {
+                ops.push( node1 );
+            }
+            else if( node1.toStringE().equals( ")" ) == true )
+            {
+                while( !ops.peek().toStringE().equals( "(" ) ) 
+                {
+                    pushNode( ops.pop() );
+                }
+                ops.pop();
+            }
+            else if( node1 instanceof Operator )
+            {
+                while( !ops.empty() && ( TokenFactory.sort( ops.peek() )
+                                                >= TokenFactory.sort( node1 ) ) ) 
+                {
+                    pushNode( ops.pop() );
+                }
+                ops.push( node1 );
+            }
+            
+            
+        }
+        while( !ops.empty( ) )
+        {
+            pushNode( ops.pop() );
+        }
+        if( !random.empty() )
+        {
+            finalOp = random.peek();
+            if( _printTree == true )
+            {
+                printTree( finalOp, 0 );
+                System.out.println( "Evaluated: " + finalOp.eval( ) );
+            }
+        }
+            
+        }
+        
+       
+        
+        
+    
+    //--------------------- interactive -----------------------------
+    /**
+     * Use a file chooser to get a file name interactively, then 
+     * go into a loop prompting for expressions to be entered one
+     * at a time.
+     */
+    public void interactive()
+    {
+        JFileChooser fChooser = new JFileChooser( "." );
+        fChooser.setFileFilter( new TextFilter() );
+        int choice = fChooser.showDialog( null, "Pick a file of expressions" );
+        if ( choice == JFileChooser.APPROVE_OPTION )
+        {
+            File file = fChooser.getSelectedFile();
+            if ( file != null )
+                processFile( file.getName() );
+        }
+        
+        String prompt = "Enter an arithmetic expression: ";
+        String expr = JOptionPane.showInputDialog( null, prompt );
+        while ( expr != null && expr.length() != 0 )
+        {
+            String result = processLine( expr );
+            JOptionPane.showMessageDialog( null, expr + "\n" + result );
+            expr = JOptionPane.showInputDialog( null, prompt );
+        }
+    }
+    
+    //+++++++++++++++++++++++++ inner class +++++++++++++++++++++++++++++++
+    //---------------------------- TextFilter -----------------------------
+    /**
+     * This class is used with FileChooser to limit the choice of files
+     * to those that end in *.txt
+     */
+    public class TextFilter extends javax.swing.filechooser.FileFilter
+    {
+        public boolean accept( File f ) 
+        {
+            if ( f.isDirectory() || f.getName().matches( ".*txt" ) )
+                return true;
+            return false;
+        }
+        public String getDescription()
+        {
+            return "*.txt files";
+        }
+    }
+    //--------------------- main -----------------------------------------
+    public static void main( String[] args )
+    {
+        Interpreter app = new Interpreter( args );
+    }
+}
